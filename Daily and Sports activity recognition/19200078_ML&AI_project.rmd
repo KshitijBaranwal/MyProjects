@@ -1,0 +1,390 @@
+---
+title: "Daily and Sports activities recognition"
+author: "Kshitij Baranwal  and 19200078"
+date: "24/04/2020"
+output: word_document
+---
+
+
+# Abstract:
+
+The data are motion sensor measurements of 19 daily and sports activities, each performed by 8 subjects (4 females, 4 males,
+between the ages 20 and 30) in their own style for 5 minutes. For each subject, five sensor units are used to record the movement on the torso, arms, and legs. Each unit is constituted by 9 sensors: x-y-z accelerometers, x-y-z gyroscopes, and x-y-z magnetometers. We have deployed a neural network with two hidden layers in order to predict the activity being performed using the motion sensor measurements. We are going to deploy a predictive model which can be employed for daily/sports activity recognition from movement sensor data. 
+
+# Introduction:
+
+We have data of motion sensor measurements of 19 daily and sports activities, each performed by 8 subjects (4 females, 4 males, between the ages 20 and 30) in their own style for 5 minutes. For each subject, five sensor
+units are used to record the movement on the torso, arms, and legs. Each unit is constituted by 9 sensors: x-y-z accelerometers, x-y-z gyroscopes, and x-y-z magnetometers. Sensor units are calibrated to acquire data at 25 Hz sampling frequency. The 5-minute signals are divided into 5second signal segments, so that a total of 480 signal segments are obtained for each activity, thus 480 × 19 = 9120 signal segments classified into 19 classes. Each signal segment is divided into 125 sampling instants recorded using 5 × 9 = 45 sensors. Hence, each signal segment is represented as a 125 × 45 matrix, where columns contains the 125 samples of data acquired from one of the sensors of one of the units over a period of 5 seconds, and rows contain data acquired from all of the 45 sensors at a particular sampling instant. For each signal matrix: columns 1-9 correspond to the sensors in the torso unit, columns 10-18 correspond to the sensors in right arm unit, columns 19-27 correspond to the sensors in the left arm unit, columns 28-36 correspond to the sensors in the right leg unit, and columns 37-45 correspond to the sensors in the left leg unit. For each set of 9 sensors, the first three are accelerometers, the second three are gyroscopes and the last three magnetometers. 
+
+*Trying to predict:*
+Our main goal is to deploy a predictive model which can be employed for daily/sports activity recognition from movement sensor data. This model is to be selected from various model configurations and selecting the one that is giving us the best results with minimal complexity. 
+
+*Type of problem:*
+We are provided with a 3d data where the movements on torso arms and legs are recorded. We are using Neural Network to build a model which is used to predict the above movements. 
+ 
+*Type of data:* 
+The data file data_activity_recognition.RData contains training and test data. The training data x_train includes 400 signal segments for each activity (total of 7600 signals), while the test data x_test includes 80 signal segments for each activity (totalof1520signals). The activity labels are in the objects y_train and y_test, respectively. The input data are organized in the form of 3-dimensional arrays, in which the first dimension denote the signal, the second the sampling instants and the third the sensors, so each signal is described by a vector of 125 × 45 = 5625 features. 
+ 
+
+# Methods: 
+
+*Stages of Modelling:*
+
+1) Data preparation: We load our data into a suitable place and prepare it for use in our machine learning training.
+2) Choosing a model: The next step in our workflow is choosing a model.
+3) Training: In this step, we will use our data to incrementally improve our model’s ability to predict.
+4) Evaluation: Evaluation allows us to test our model against data that has never been used for training.
+5) Hyperparameter Tuning: There were a few parameters we implicitly assumed when we did our training, and now is a good time to go back and test those assumptions and try other values.
+6) Prediction: Prediction, or inference, is the step where we get to answer some questions. This is the point of all this work, where the value of machine learning is realized.
+
+*Data Loading and Preparation:* 
+
+We first load the “data_activity_recognition.RData” data and library “keras” and “tfruns” for implementing the neural network and tuning the number of nodes and the dropout rate for our analysis. The data file data_activity_recognition.RData
+contains training and test data. The training data x_train includes 400 signal segments for each activity (total of 7600 signals), while the test data x_test includes 80 signal segments for each activity (totalof1520signals).The activity labels are in the objects y_train and y_test, respectively. The input data are organized in the form of 3-dimensional arrays, in which the first dimension denote the signal, the second the sampling instants and the third the sensors, so each signal is described by a vector of 125 × 45 = 5625 features. After loading the data, first we reshape the training and test feature from a 3D array to 2D array. Then, we normalize the range of input variables to [0,1]. As our target variable is numerical, we use one-hot encoding to transform the target variable to categorical variable. The first half of data will be employed for validation and model tuning, while the second half willbe employed for actual testing and evaluation of the generalized predictive performance. 
+
+
+```{r,message=FALSE,warning=FALSE}
+
+
+library(keras)
+library(tfruns)
+
+load("data_activity_recognition.RData") # Loading the data
+
+dim(x_train)        # Checking the dimensions of the features
+
+# Splitting the test data into validation and test sets 
+# Restructuring the arrays from 3D to 2D using array_reshape
+x_train=data.matrix(array_reshape(x_train,c(nrow(x_train),125*45)))
+x_test=data.matrix(array_reshape(x_test,c(nrow(x_test),125*45)))
+
+dim(x_train)  # Checking the reshaped data
+
+# Transforming the target variable using one-hot encoding 
+y_train=data.matrix(data.frame(y_train))
+y_test=data.matrix(data.frame(y_test))
+y_train=to_categorical(y_train-1)
+y_test=to_categorical(y_test-1)
+
+# Normalising the range of x to 0-1 
+range_norm = function(x,a =0,b =1) {
+  ( (x-min(x))/(max(x)-min(x)) )*(b-a)+a 
+  }
+x_train=apply(x_train,2, range_norm)
+x_test=apply(x_test,2, range_norm)
+```
+
+After the pre-processing, knowing that the dimension of our dataset is still large, we reduce it by using Principal Component Analysis (PCA). 
+ 
+ 
+```{r}
+# Reducing dimensions using PCA
+pca=prcomp(x_train)
+prop=cumsum(pca$sdev^2)/sum(pca$sdev^2)
+Q=length(prop[prop<0.99])
+Q   # checking the new dimensions of the features
+xz_train=pca$x[,1:Q]
+xz_test <-predict(pca, x_test)[,1:Q]
+
+# Dimensions of the training set 
+
+N =nrow(xz_train)
+V =ncol(xz_train)
+
+
+```
+
+
+*Principal Component Analysis*
+
+Principal component analysis (PCA) is one of the most popular dimension reduction technique. The idea behind PCA is that the data can be expressed in a lower dimensional subspace, characterized by independent coordinate vectors which can explain most of the variability present in the original data. The number of such vectors, and ultimately the dimension of the subspace, is usually set by keeping the first Q vectors which can explain a pre-specified proportion of the total variability in the data (usually in the range 0.70 - 0.99). Sometimes, the size Q of the subspace can also be specified arbitrarily in advance. In R, PCA can be implemented using the prcomp() function. The function provides in output a measure of the variation explained by each coordinate vector of the subspace. This information is contained in the slot sdev, which measures the standard deviation, taking the square we obtain the explained variance. Vectors in output are ordered according to this variance, from the largest to the smallest. We keep the first Q coordinate vectors such that 99% of the variability can be explained in the subspace.
+The dimensionality of the predictors has been reduced enormously, and these vectors identify directions of the subspace which can account for 99% of variability. The original input features are mapped into this low dimensional subspace, obtaining a representation of the data points through a new set of Q features, the principal components. This representation of the data points in the new features is readily available in the slot x of the output. This will be our dimension-reduced training set. PCA learns a mapping, so we can generalize this mapping from the original data-space to the low dimensional subspace also to the test data. To do so we map the test data onto the subspace, using the function predict. 
+
+*Modelling:*
+
+We start with some of the basic models to observe how our data is training on models with different layers. First, we construct 3 models, first model is with 2 hidden layers, second model is with 2 hidden layers and L2 regularization with early stopping and third model is with 3 hidden layers and L2 regularization with early stopping. The reason we do this, is to observe is there is any overfitting and with an additional layer,is the accuracy improving .We develop these three models and check its performance on training data and validate it on test data. 
+ 
+Construction of model with different layers: 
+1) Here we have 2 or 3 hidden layers with “ReLU” activation and one output with “softmax” output activation. 
+2) In the first layer we consider 1134 units, as the input units and the input shape as V. 
+3) We keep the number of units of second hidden layer as 800 (500 for 3rd layers in 3 hidden layer model) 
+4) In the training configuration, we consider standard stochastic gradient descent for optimization, and categorical cross-entropy as error function, with accuracy as performance measure. We develop our model using the %>% operator to set everything in one go. 
+ 
+
+```{r}
+
+# Model with 2 hidden layers only ---------------------------------------------
+
+# model definition
+model1 =keras_model_sequential()%>%
+  layer_dense(units =1134,activation ="relu",input_shape =V)%>%
+  layer_dense(units =800,activation ="relu")%>%
+  layer_dense(units =ncol(y_train),activation ="softmax")%>%
+  compile(loss ="categorical_crossentropy",metrics ="accuracy",optimizer =optimizer_sgd())
+
+# model training
+fit1=model1%>%
+  fit(x =xz_train,y =y_train,
+      validation_data =list(xz_test, y_test),
+      epochs =100,
+      verbose =1,
+      )
+
+# graphical representation of the errors
+smooth_line =function(y) {
+  x =1:length(y)
+  out =predict(loess(y~x) )
+  return(out)
+  }
+cols =c("orange","yellow")
+out =1-cbind(fit1$metrics$accuracy,fit1$metrics$val_accuracy)
+matplot(out,pch =19,ylab ="Error",xlab ="No. of Epochs",col =adjustcolor(cols[1:2],0.3),log ="y")
+matlines(apply(out,2, smooth_line),lty =1,col =cols[1:2],lwd =2)
+legend("bottomleft",legend =c("Training Error","Test Error"),fill =cols[1:2],bty ="n")
+
+# predictive accuracy of the model
+
+tail(fit1$metrics$val_accuracy,1)
+
+# Model with 2 hidden layers and L2 regularization with early stopping----------------------------------
+
+# model definition
+model2 =keras_model_sequential()%>%
+  layer_dense(units =1134,activation ="relu",input_shape =V,kernel_regularizer = regularizer_l2(l=0.01))%>%
+  layer_dense(units =800,activation ="relu",kernel_regularizer = regularizer_l2(l=0.01))%>%
+  layer_dense(units =ncol(y_train),activation ="softmax")%>%
+  compile(loss ="categorical_crossentropy",metrics ="accuracy",optimizer =optimizer_sgd())
+
+# model training
+fit2=model2%>%
+  fit(x =xz_train,y =y_train,
+      validation_data =list(xz_test, y_test),
+      epochs =100,
+      verbose =1,
+      callbacks = callback_early_stopping(monitor = "val_accuracy", patience =10)
+      )
+
+# graphical representation of the errors
+smooth_line =function(y) {
+  x =1:length(y)
+  out <-predict(loess(y~x) )
+  return(out)
+  }
+cols =c("orange","yellow")
+out =1-cbind(fit2$metrics$accuracy,fit2$metrics$val_accuracy)
+matplot(out,pch =19,ylab ="Error",xlab ="No. of Epochs",col =adjustcolor(cols[1:2],0.3),log ="y")
+matlines(apply(out,2, smooth_line),lty =1,col =cols[1:2],lwd =2)
+legend("bottomleft",legend =c("Training Error","Test Error"),fill =cols[1:2],bty ="n")
+
+# predictive accuracy of the model
+
+tail(fit2$metrics$val_accuracy,1)
+
+# Model with 3 hidden layers and L2 regularization with early stopping -----------------------------------------
+
+# model definition
+model3 =keras_model_sequential()%>%
+  layer_dense(units =1134,activation ="relu",input_shape =V,kernel_regularizer = regularizer_l2(l=0.01))%>%
+  layer_dense(units =800,activation ="relu",kernel_regularizer = regularizer_l2(l=0.01))%>%
+  layer_dense(units =500,activation ="relu",kernel_regularizer = regularizer_l2(l=0.01))%>%
+  layer_dense(units =ncol(y_train),activation ="softmax")%>%
+  compile(loss ="categorical_crossentropy",metrics ="accuracy",optimizer =optimizer_sgd())
+
+# model training
+fit3 =model3%>%
+  fit(x =xz_train,y =y_train,
+      validation_data =list(xz_test, y_test),
+      epochs =100,
+      verbose =1,
+      callbacks = callback_early_stopping(monitor = "val_accuracy", patience =10)
+      )
+
+# graphical representation of the errors
+smooth_line =function(y) {
+  x =1:length(y)
+  out =predict(loess(y~x) )
+  return(out)
+  }
+cols =c("orange","yellow")
+out =1-cbind(fit3$metrics$accuracy,fit3$metrics$val_accuracy)
+matplot(out,pch =19,ylab ="Error",xlab ="No. of Epochs",col =adjustcolor(cols[1:2],0.3),log ="y")
+matlines(apply(out,2, smooth_line),lty =1,col =cols[1:2],lwd =2)
+legend("bottomleft",legend =c("Training Error","Test Error"),fill =cols[1:2],bty ="n")
+
+#predictive accuracy of the model
+tail(fit3$metrics$val_accuracy,1)
+
+```
+
+We get the accuracy of model with 2 hidden layers as 92.6%, model with 2 hidden layers and L2 regularization with early stopping  as 94% and model with 3 hidden layers and L2 regularization with early stopping as 94% approximatey.
+
+*Hyperparameter Turing:*
+
+The ideal way of tuning is we split the test data in validation and testing, after doing so we use the validation set to tune the model for various parameters and then test the data. To tune effectively the model configuration, we make use of package tfruns. This package provides a suite of tools for tracking, visualizing, and managing training runs and experiments, which is particularly useful to compare hyper-parameters and metrics across runs to find the best performing model.
+ 
+
+```{r,message=FALSE,warning=FALSE}
+# hyperparameter tuning values
+size1_set=c(1134,800,500)
+size2_set=c(1134,800,500)
+lambda_set=c(0,0.002,0.004,0.006,0.008,0.01)
+
+# tuning procedure
+runs=tuning_run("ModelConfig.r",
+                 runs_dir = "runs_result",
+                 flags = list(size1=size1_set,
+                              size2=size2_set,
+                              l2=lambda_set),sample=0.5
+                 )
+```
+
+*Extracting the stored results and plotting the accuracies:*
+
+The “runs_result” stores the results and information obtained for various runs, we extract the results from that folder which is stored in the local directory. The two functions “read_metrics()” for reading the results of the runs stored in our directory and “plot_learning_curve()” to plot the accuracies for each model accross the epochsbelow, will be used to extract values from the stored runs and plot the corresponding validation learning curves. Note that package jsonlite is required as scores are stored .jsonformat. 
+
+```{r}
+read_metrics <- function(path, files = NULL)
+# 'path' is where the runs are --> e.g. "path/to/runs"
+{
+
+path <- paste0(path, "/")
+if ( is.null(files) ) files <- list.files(path)
+n <- length(files)
+out <- vector("list", n)
+for ( i in 1:n ) {
+dir <- paste0(path, files[i], "/tfruns.d/")
+out[[i]] <- jsonlite::fromJSON(paste0(dir, "metrics.json"))
+out[[i]]$flags <- jsonlite::fromJSON(paste0(dir, "flags.json"))
+}
+return(out)
+}
+
+plot_learning_curve <- function(x, ylab = NULL, cols = NULL, top = 3, span = 0.4, ...)
+{
+# to add a smooth line to points
+smooth_line <- function(y) {
+x <- 1:length(y)
+out <- predict( loess(y ~ x, span = span) )
+return(out)
+}
+matplot(x, ylab = ylab, xlab = "Epochs", type = "n", ...)
+grid()
+matplot(x, pch = 19, col = adjustcolor(cols, 0.3), add = TRUE)
+tmp <- apply(x, 2, smooth_line)
+tmp <- sapply( tmp, "length<-", max(lengths(tmp)) )
+set <- order(apply(tmp, 2, max, na.rm = TRUE), decreasing = TRUE)[1:top]
+cl <- rep(cols, ncol(tmp))
+cl[set] <- "deepskyblue2"
+matlines(tmp, lty = 1, col = cl, lwd = 2)}
+
+out = read_metrics("runs_result")
+# extract validation accuracy and plot learning curve
+acc = sapply(out, "[[", "val_accuracy")
+plot_learning_curve(acc, col = adjustcolor("black", 0.3), ylim = c(0.85, 1),ylab = "Val accuracy", top = 3)
+
+res = ls_runs(metric_val_accuracy > 0.94,runs_dir = "runs_result", order = metric_val_accuracy)
+res = res[,c(2,4,8:11)]
+res[1:10,] # top 10 models
+```
+
+
+# Results and Discussions:
+
+For analysis of all the model, our activation function for each hidden layer is Rectified Linear Unit (Relu) and the output function in the output layer is the “softmax” function. The error function used for each model is the categorical_crossentropy() while the optimizer for each model is the stochastic gradient descent. The number of nodes in the first layer are 1134, second layer are 800 and third layer (if any) are 500. The regularization methods used(if at all) are L2 regularization and early stopping with lambda = 0.01 and patience level 10 respectively. 
+
+*Selecting the best/optimal model:*
+
+In this part, we compare all 3 models to select the best model.
+
+1) 2 hidden layers without regularization: 
+
+First is a simple neural network model with 2 hidden layers without any type of regularization. We train this model on the reduced training set and check its predictive accuracy on the reduced test set. We plot the training and test errors over 100 epochs and looking at the graph above we can see that there is clear evidence of overfitting for the model with 2 hidden layers and no regularization and the predictive accuracy for this model is 93% approximately. 
+
+
+2) 2 hidden layers with L2 regularization and early stopping:
+
+
+To get rid of the over fitting taking place in the previous model, we implement L2 regularization and early stopping in the same model. We train this new model on the reduced training set and check its predictive accuracy on the reduced test set. We plot the training and test errors over 100 epochs and looking at the graph above, we can say that we have successfully got rid of the overfitting in the model without regularization and the training of the model stopped after around 60 epochs. The predictive accuracy of the model is 94% approximately. 
+
+
+
+3) 3 hidden layers with L2 regularization and early stopping: 
+
+To check if we can get better accuracy by adding an additional layer to the previous neural network model, we add an additional hidden layer to the regularized model. We train this new model on the reduced training set and check its predictive accuracy on the reduced test set. We plot the training and test errors over 100 epochs and looking at the graph above, we can say that by adding an additional hidden layer to the regularized model, we get a similar pattern in values of the train and test error as compared to the regularized model. Also, the predictive accuracy of this model is approximately 94%. 
+
+
+
+Thus, looking at all the facts stated above we can infer that the model which is less complex and giving a high accuracy is the neural network with 2 hidden layers along with L2 regularization and early stopping with a predictive accuracy of 94%. 
+
+
+*Tuning the model with 2 hidden layers along with L2 regularization and early stopping:*
+
+Now we will tune the values of the number of nodes in each layer and the penalty of the L2 regularization to see if we get a better prediction accuracy. In the R script file "ModelConfig.r" we set the following model configuration:
+
+
+FLAGS = flags(
+flag_numeric("size1",1000), flag_numeric("size2",500),flag_numeric("l2",0.4)
+)
+
+# model definition
+model = keras_model_sequential()%>%
+ layer_dense(units =FLAGS$size1,activation ="relu",input_shape =V,kernel_regularizer = regularizer_l2(l=FLAGS$l2))%>%
+ layer_dense(units =FLAGS$size2,activation ="relu",kernel_regularizer = regularizer_l2(l=FLAGS$l2))%>%
+ layer_dense(units =ncol(y_train),activation ="softmax")%>%
+ compile(loss ="categorical_crossentropy",metrics ="accuracy",optimizer =optimizer_sgd())
+ 
+# model training
+fit = model%>%
+ fit(x =xz_train,y =y_train,
+ validation_data =list(xz_test, y_test), epochs =100, verbose =1,
+ callbacks = callback_early_stopping(monitor = "val_accuracy", patience = 10)
+ )
+# store accuracy on test set for each run
+
+score <- model %>% evaluate(xz_test, y_test,verbose = 0)
+
+
+We tune this configuration for the number of nodes in the 2 layers and lambda.
+Following is the hyperparameters grid:
+1st layer size: 1134 – 800 – 500
+2nd layer size: 1134 – 800 – 500
+Weight decay λ: 0 – 0.002 – 0.004 –0.006 –0.008 –0.01
+
+There are 54 possible combinations of the hyperparameters. We sample out 50% of the configurations from the grid, resulting in 27 possible configurations to be evaluated. After we tune the 27 models, we get the above graphs for the accuracies of these models over 100 epochs. Looking at the graph above, we can say that all the 27 models have the predictive accuracy between 90% and 95%. The three curves in the blue color represent the accuracies of the top 3 model configurations. 
+
+Thus, looking at the topmost row in the table, we can say that the predictive accuracy is the highest for the
+model with 1134 nodes in the first layer, 800 nodes in the second layer and the lambda value being 0.008. This
+highest accuracy is approximately 95%. 
+
+
+# Conclusion:
+
+We have done data pre-processing, compared 3 models and tuned it as well. Thus, in our entire analysis, we have achieved by doing the following:
+
+1) Starting from reshaping the 3D features to 2D features, performed one-hot encoding on the target variables, normalizing the range of the features and reducing the high-dimensional features by implementing PCA.
+
+2) Building a simple 2 layered neural network model without any regularization and comparing this model’s performance to the performance of the 2 layered regularized neural network.
+
+3) Observing the regularized 2 layered model being better, we compared this with a 3 layered regularized model and concluding the 3 layered regularized model to be optimal as both had similar performance.
+
+4) Tuning the optimal 2 layered regularized model and finding the optimal values for the
+hyperparameters.
+In the end we successfully obtain a predictive model having an accuracy of 95%. 
+
+With the predictive model which can be employed for daily/sports activity recognition from movement sensor data, with an accuracy rate of 95% obtained from the best sub sampled model, we can say that which exercise for which body part is best suited for an individual.
+
+# References: 
+
+1) Lecture notes and labs for Machine Learning & AI. 
+                                                                                         
+2) https://towardsdatascience.com/the-7-steps-of-machine-learning-2877d7e5548e
+
+
+
+
+
+
+
+
+
+
