@@ -1,4 +1,9 @@
-# UCDProjects
+# My Projects
+
+Zendesk Ticketing API System, November 2020
+Created a JAVA project which implements HTTP connection for sending GET request to fetch tickets in JSON format, manipulated JSON data for displaying tickets in pagination format by using “Offset-Pagination” and wrote a few test cases to check HTTP connection and also handled few exceptions.
+Tools: JAVA, JSON, Eclipse, REST API
+
 
 Daily and Sports activity recognition, April 2020
 Created a neural network model by starting with data cleaning, normalizing the range, using Principal
